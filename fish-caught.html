@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Fish Sighted - FlyLog</title>
+  <title>Fish Caught - FlyLog</title>
   <style>
     * {
       margin: 0;
@@ -113,6 +113,7 @@
 
     input[type="datetime-local"],
     input[type="text"],
+    input[type="number"],
     select,
     textarea {
       width: 100%;
@@ -142,11 +143,86 @@
       color: #4a5568;
     }
 
+    .fly-section {
+      background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+      border-radius: 16px;
+      padding: 2rem;
+      margin: 2rem 0;
+      border: 1px solid #e2e8f0;
+    }
+
+    .fly-position {
+      margin: 1.5rem 0;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 2px solid;
+      position: relative;
+    }
+
+    .fly-position-top {
+      background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+      border-color: #38a169;
+    }
+
+    .fly-position-middle {
+      background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+      border-color: #3182ce;
+    }
+
+    .fly-position-bottom {
+      background: linear-gradient(135deg, #fffbf0 0%, #fef5e7 100%);
+      border-color: #d69e2e;
+    }
+
+    .fly-position::before {
+      content: attr(data-position);
+      position: absolute;
+      top: -12px;
+      left: 1rem;
+      background: inherit;
+      padding: 0 0.75rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border-radius: 6px;
+    }
+
+    .fly-position-top::before {
+      color: #38a169;
+    }
+
+    .fly-position-middle::before {
+      color: #3182ce;
+    }
+
+    .fly-position-bottom::before {
+      color: #d69e2e;
+    }
+
     .form-row {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 1rem;
       align-items: start;
+    }
+
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 8px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: auto;
+      margin-right: 0.5rem;
+      transform: scale(1.2);
+    }
+
+    .checkbox-group label {
+      margin-bottom: 0;
+      cursor: pointer;
     }
 
     .location-controls {
@@ -293,6 +369,10 @@
         font-size: 2rem;
       }
 
+      .fly-section {
+        padding: 1.5rem;
+      }
+
       .form-row {
         grid-template-columns: 1fr;
       }
@@ -306,20 +386,20 @@
 
   <div class="container">
     <div class="form-header">
-      <h1>Fish Sighted</h1>
-      <p>Document fish sightings and behavior patterns for future reference</p>
+      <h1>Fish Caught</h1>
+      <p>Log your successful catch with detailed environmental and technique data</p>
     </div>
 
     <div class="form-card">
-      <form id="fishSightedForm">
-
+      <form id="fishForm">
+        
         <!-- Basic Information -->
         <div class="form-section">
           <h3 class="section-title">Basic Information</h3>
-
+          
           <div class="form-group">
-            <label for="sightTime">Date & Time (auto-filled)</label>
-            <input type="datetime-local" id="sightTime" name="sightTime">
+            <label for="datetime">Date & Time (auto-filled)</label>
+            <input type="datetime-local" id="datetime" name="datetime">
           </div>
 
           <div class="form-group">
@@ -340,7 +420,7 @@
         <!-- Environmental Conditions -->
         <div class="form-section">
           <h3 class="section-title">Environmental Conditions</h3>
-
+          
           <div class="form-row">
             <div class="form-group">
               <label for="waterTemp">Water Temperature (°C)</label>
@@ -398,26 +478,143 @@
           </div>
         </div>
 
-        <!-- Fish Information -->
+        <!-- Fly Setup -->
         <div class="form-section">
-          <h3 class="section-title">Fish Information</h3>
+          <h3 class="section-title">Fly Setup (Top to Bottom)</h3>
+          
+          <div class="fly-section">
+            <script>
+              const positions = ['Top','Middle','Bottom'];
+              const flies = [
+                'Woolly Bugger',
+                'Pheasant Tail Nymph',
+                'Hare\'s Ear Nymph',
+                'Copper John',
+                'Adams Dry',
+                'Elk Hair Caddis',
+                'Zebra Midge',
+                'San Juan Worm'
+              ];
+              const colors = ['Black', 'Olive', 'Brown', 'White', 'Red', 'Yellow (Chartreuse)', 'Orange', 'Grey (Silver)', 'Gold'];
 
-          <div class="form-group">
-            <label for="fishWeight">Estimated Weight (lbs)</label>
-            <select id="fishWeight" name="fishWeight">
-              <option>--</option>
-              <script>
-                for (let w = 0.5; w <= 8.0; w += 0.5) {
-                  document.write('<option>' + w.toFixed(1) + '</option>');
-                }
-              </script>
-            </select>
+              positions.forEach(pos => {
+                let className = 'fly-position-' + pos.toLowerCase();
+                document.write(`
+                  <div class="fly-position ${className}" data-position="${pos.toUpperCase()} FLY">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label for="flyName${pos}">Fly Name (${pos})</label>
+                        <select id="flyName${pos}" name="flyName${pos}">
+                          <option>--</option>
+                          ${flies.map(f => `<option>${f}</option>`).join('')}
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="flySize${pos}">Fly Size (${pos})</label>
+                        <select id="flySize${pos}" name="flySize${pos}">
+                          <option>--</option>
+                          ${[2,4,6,8,10,12,14,16,18,20,22].map(s => `<option>${s}</option>`).join('')}
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="flyColor${pos}">Fly Color (${pos})</label>
+                        <select id="flyColor${pos}" name="flyColor${pos}">
+                          <option>--</option>
+                          ${colors.map(c => `<option>${c}</option>`).join('')}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div class="checkbox-group">
+                      <input type="checkbox" id="flyEaten${pos}" name="flyEaten${pos}">
+                      <label for="flyEaten${pos}">Fish ate this fly</label>
+                    </div>
+                  </div>
+                `);
+              });
+            </script>
+          </div>
+        </div>
+
+        <!-- Retrieve Information -->
+        <div class="form-section">
+          <h3 class="section-title">Retrieve Information</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="retrieveStage">Retrieve Stage</label>
+              <select id="retrieveStage" name="retrieveStage">
+                <option>--</option>
+                <option>Drop</option>
+                <option>Retrieve</option>
+                <option>Pause</option>
+                <option>Hang</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="retrieveSpeed">Retrieve Speed</label>
+              <select id="retrieveSpeed" name="retrieveSpeed">
+                <option>--</option>
+                <option>Slow</option>
+                <option>Medium</option>
+                <option>Fast</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fish Measurements -->
+        <div class="form-section">
+          <h3 class="section-title">Fish Measurements</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fishSize">Fish Size (cm)</label>
+              <input type="number" id="fishSize" name="fishSize" min="0" step="1" placeholder="Optional">
+            </div>
+
+            <div class="form-group">
+              <label for="fishWeight">Fish Weight (lbs)</label>
+              <select id="fishWeight" name="fishWeight">
+                <option>--</option>
+                <script>
+                  for (let w = 0.5; w <= 8.0; w += 0.5) {
+                    document.write('<option>' + w.toFixed(1) + '</option>');
+                  }
+                </script>
+              </select>
+            </div>
           </div>
         </div>
 
         <!-- Photos -->
         <div class="form-section">
           <h3 class="section-title">Photos</h3>
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label for="flyPhoto">Fly Photo</label>
+              <div class="upload-area">
+                <input type="file" id="flyPhoto" name="flyPhoto" accept="image/*" class="file-input">
+              </div>
+              <div id="flyPhotoStatus" class="upload-status" style="display: none;"></div>
+              <img id="flyPhotoPreview" class="image-preview" style="display: none;">
+              <input type="hidden" id="flyPhotoUrl" name="flyPhotoUrl">
+            </div>
+
+            <div class="form-group">
+              <label for="fishPhoto">Fish Photo</label>
+              <div class="upload-area">
+                <input type="file" id="fishPhoto" name="fishPhoto" accept="image/*" class="file-input">
+              </div>
+              <div id="fishPhotoStatus" class="upload-status" style="display: none;"></div>
+              <img id="fishPhotoPreview" class="image-preview" style="display: none;">
+              <input type="hidden" id="fishPhotoUrl" name="fishPhotoUrl">
+            </div>
+          </div>
 
           <div class="form-row">
             <div class="form-group">
@@ -442,12 +639,27 @@
           </div>
         </div>
 
-        <!-- Notes -->
+        <!-- Additional Information -->
         <div class="form-section">
-          <h3 class="section-title">Notes</h3>
+          <h3 class="section-title">Additional Information</h3>
+          
+          <div class="form-group">
+            <label for="stomachContents">Stomach Contents</label>
+            <textarea id="stomachContents" name="stomachContents" rows="2"></textarea>
+          </div>
 
           <div class="form-group">
-            <label for="notes">Notes (e.g. behavior, direction)</label>
+            <label for="stomachPhoto">Contents Photo</label>
+            <div class="upload-area">
+              <input type="file" id="stomachPhoto" name="stomachPhoto" accept="image/*" class="file-input">
+            </div>
+            <div id="stomachPhotoStatus" class="upload-status" style="display: none;"></div>
+            <img id="stomachPhotoPreview" class="image-preview" style="display: none;">
+            <input type="hidden" id="stomachPhotoUrl" name="stomachPhotoUrl">
+          </div>
+
+          <div class="form-group">
+            <label for="notes">Notes</label>
             <textarea id="notes" name="notes" rows="3"></textarea>
           </div>
         </div>
@@ -516,7 +728,7 @@
         statusElement.style.display = 'block';
 
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,pressure_msl,relative_humidity_2m,cloudcover,precipitation,is_day&timezone=auto`;
-
+        
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error(`Weather API error: ${response.status}`);
@@ -560,7 +772,7 @@
         function(position) {
           currentLat = position.coords.latitude;
           currentLon = position.coords.longitude;
-
+          
           const lat = currentLat.toFixed(6);
           const lon = currentLon.toFixed(6);
           locationField.value = `${lat}, ${lon}`;
@@ -591,7 +803,7 @@
       // Get local time by adjusting for timezone offset
       const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const datetime = localTime.toISOString().slice(0, 16);
-      document.getElementById('sightTime').value = datetime;
+      document.getElementById('datetime').value = datetime;
 
       // Get initial location and weather
       getLocationAndWeather();
@@ -605,8 +817,8 @@
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'fish-sightings');
-      formData.append('tags', `fish,sighting,${photoType}`);
+      formData.append('folder', 'fish-catches');
+      formData.append('tags', `fish,${photoType}`);
 
       const statusElement = document.getElementById(`${photoType}Status`);
       const previewElement = document.getElementById(`${photoType}Preview`);
@@ -646,7 +858,7 @@
     }
 
     // Add event listeners for file uploads
-    const photoTypes = ['waterPhoto', 'skyPhoto'];
+    const photoTypes = ['flyPhoto', 'fishPhoto', 'waterPhoto', 'skyPhoto', 'stomachPhoto'];
 
     photoTypes.forEach(photoType => {
       const input = document.getElementById(photoType);
@@ -673,26 +885,32 @@
     // Function to submit data to Sheetly
     async function submitToSheetly(formData) {
       const submitButton = document.querySelector('button[type="submit"]');
-
+      
       try {
         // Disable submit button and show loading state
         submitButton.disabled = true;
         submitButton.textContent = 'Submitting...';
 
         // Get photo URLs from hidden fields
+        const flyPhotoUrl = document.getElementById('flyPhotoUrl').value;
+        const fishPhotoUrl = document.getElementById('fishPhotoUrl').value;
         const waterPhotoUrl = document.getElementById('waterPhotoUrl').value;
         const skyPhotoUrl = document.getElementById('skyPhotoUrl').value;
+        const stomachPhotoUrl = document.getElementById('stomachPhotoUrl').value;
 
         // Debug: Log photo URLs
         console.log('Photo URLs:', {
+          flyPhoto: flyPhotoUrl,
+          fishPhoto: fishPhotoUrl,
           waterPhoto: waterPhotoUrl,
-          skyPhoto: skyPhotoUrl
+          skyPhoto: skyPhotoUrl,
+          stomachPhoto: stomachPhotoUrl
         });
 
         // Prepare data for Sheetly API
         const sheetData = {
-          fishsighted: {
-            sightTime: formData.get('sightTime'),
+          fishcaught: {
+            datetime: formData.get('datetime'),
             location: formData.get('location'),
             weather: formData.get('weather'),
             waterTemp: formData.get('waterTemp'),
@@ -700,16 +918,35 @@
             structure: formData.get('structure'),
             structureNotes: formData.get('structureNotes'),
             depth: formData.get('depth'),
+            flyNameTop: formData.get('flyNameTop'),
+            flySizeTop: formData.get('flySizeTop'),
+            flyColorTop: formData.get('flyColorTop'),
+            flyEatenTop: formData.get('flyEatenTop') ? 'Yes' : 'No',
+            flyNameMiddle: formData.get('flyNameMiddle'),
+            flySizeMiddle: formData.get('flySizeMiddle'),
+            flyColorMiddle: formData.get('flyColorMiddle'),
+            flyEatenMiddle: formData.get('flyEatenMiddle') ? 'Yes' : 'No',
+            flyNameBottom: formData.get('flyNameBottom'),
+            flySizeBottom: formData.get('flySizeBottom'),
+            flyColorBottom: formData.get('flyColorBottom'),
+            flyEatenBottom: formData.get('flyEatenBottom') ? 'Yes' : 'No',
+            retrieveStage: formData.get('retrieveStage'),
+            retrieveSpeed: formData.get('retrieveSpeed'),
+            fishSize: formData.get('fishSize'),
             fishWeight: formData.get('fishWeight'),
+            stomachContents: formData.get('stomachContents'),
+            notes: formData.get('notes'),
+            flyPhoto: flyPhotoUrl || '',
+            fishPhoto: fishPhotoUrl || '',
             waterPhoto: waterPhotoUrl || '',
             skyPhoto: skyPhotoUrl || '',
-            notes: formData.get('notes')
+            stomachPhoto: stomachPhotoUrl || ''
           }
         };
 
         console.log('Submitting to Sheetly:', sheetData);
 
-        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishsighted', {
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishcaught', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -729,8 +966,8 @@
         console.log('Sheetly response:', result);
 
         // Success!
-        alert('Fish sighting successfully logged!');ogle Sheet!');
-
+        alert('Fish catch successfully logged!');
+        
       } catch (error) {
         console.error('Submission error:', error);
         alert(`Failed to submit data: ${error.message}`);
@@ -742,7 +979,7 @@
     }
 
     // Form submission handler
-    document.getElementById('fishSightedForm').addEventListener('submit', function(event) {
+    document.getElementById('fishForm').addEventListener('submit', function(event) {
       event.preventDefault();
 
       const formData = new FormData(this);
