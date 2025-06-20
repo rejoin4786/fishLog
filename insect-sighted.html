@@ -526,9 +526,6 @@
     const CLOUDINARY_CLOUD_NAME = 'dhyvcrpv7';
     const CLOUDINARY_UPLOAD_PRESET = 'fish_photos';
 
-    // OpenWeatherMap API configuration
-    const OPENWEATHER_API_KEY = '91c11ab966ee99ba82a95bb5a411774a';
-
     // Global variables for location
     let currentLat = null;
     let currentLon = null;
@@ -540,17 +537,7 @@
       return directions[index];
     }
 
-    // Function to convert Kelvin to Celsius
-    function kelvinToCelsius(kelvin) {
-      return Math.round(kelvin - 273.15);
-    }
-
-    // Function to convert meters per second to mph
-    function msToMph(ms) {
-      return Math.round(ms * 2.237);
-    }
-
-    // Function to fetch weather data from OpenWeatherMap
+    // Function to fetch weather data
     async function fetchWeather(lat, lon) {
       const statusElement = document.getElementById('weatherStatus');
       const weatherField = document.getElementById('weather');
@@ -560,7 +547,8 @@
         statusElement.className = 'weather-status weather-loading';
         statusElement.style.display = 'block';
 
-        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const apiKey = '91c11ab966ee99ba82a95bb5a411774a';
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -569,26 +557,22 @@
 
         const data = await response.json();
 
-        // Format weather data for AI analysis
-        const temp = Math.round(data.main.temp);
-        const feelsLike = Math.round(data.main.feels_like);
-        const condition = data.weather[0].main;
-        const description = data.weather[0].description;
-        const windSpeed = msToMph(data.wind.speed);
-        const windDir = data.wind.deg ? getWindDirection(data.wind.deg) : 'Variable';
-        const pressure = Math.round(data.main.pressure);
+        // Format weather data
+        const temperature = Math.round(data.main.temp * 10) / 10; // Round to 1 decimal
+        const weatherCondition = data.weather[0].description;
+        const windSpeed = Math.round(data.wind.speed * 3.6 * 10) / 10; // Convert m/s to km/h
+        const windDir = getWindDirection(data.wind.deg || 0);
+        const pressure = data.main.pressure;
         const humidity = data.main.humidity;
-        const visibility = data.visibility ? Math.round(data.visibility / 1000) : 'N/A';
         const clouds = data.clouds.all;
+        const locationName = `${data.name}, ${data.sys.country}`;
         
-        // Get sunrise/sunset times
+        // Check if it's day or night (rough estimate)
         const now = new Date();
-        const sunrise = new Date(data.sys.sunrise * 1000);
-        const sunset = new Date(data.sys.sunset * 1000);
-        const isDayTime = now > sunrise && now < sunset;
-        const timeOfDay = isDayTime ? 'Day' : 'Night';
+        const hour = now.getHours();
+        const timeOfDay = (hour >= 6 && hour < 20) ? 'Day' : 'Night';
 
-        const weatherSummary = `Temperature: ${temp}°C (feels like ${feelsLike}°C) | Condition: ${condition} (${description}) | Wind: ${windSpeed}mph ${windDir} | Pressure: ${pressure}mb | Humidity: ${humidity}% | Clouds: ${clouds}% | Visibility: ${visibility}km | Time: ${timeOfDay}`;
+        const weatherSummary = `Location: ${locationName} | Temperature: ${temperature}°C | Condition: ${weatherCondition} | Wind: ${windSpeed}km/h ${windDir} | Pressure: ${pressure}hPa | Humidity: ${humidity}% | Clouds: ${clouds}% | Time: ${timeOfDay}`;
 
         weatherField.value = weatherSummary;
         statusElement.style.display = 'none';
