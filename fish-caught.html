@@ -812,7 +812,10 @@
       const locationField = document.getElementById('location');
       const refreshBtn = document.getElementById('refreshLocation');
 
+      console.log('Getting location and weather...');
+
       if (!navigator.geolocation) {
+        console.error('Geolocation not supported');
         alert('Geolocation is not supported by this browser.');
         return;
       }
@@ -822,6 +825,7 @@
 
       navigator.geolocation.getCurrentPosition(
         function(position) {
+          console.log('Location obtained:', position);
           currentLat = position.coords.latitude;
           currentLon = position.coords.longitude;
           
@@ -851,13 +855,23 @@
 
     // Auto-fill datetime and location on page load
     document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, initializing...');
+      
       const now = new Date();
       // Get local time by adjusting for timezone offset
       const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const datetime = localTime.toISOString().slice(0, 16);
-      document.getElementById('datetime').value = datetime;
+      
+      const datetimeField = document.getElementById('datetime');
+      if (datetimeField) {
+        datetimeField.value = datetime;
+        console.log('Datetime field set:', datetime);
+      } else {
+        console.error('Datetime field not found!');
+      }
 
       // Get initial location and weather
+      console.log('Calling getLocationAndWeather...');
       getLocationAndWeather();
     });
 
