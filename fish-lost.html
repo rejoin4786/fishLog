@@ -721,7 +721,7 @@
         statusElement.className = 'weather-status weather-loading';
         statusElement.style.display = 'block';
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,pressure_msl,relative_humidity_2m,cloudcover,precipitation,is_day&timezone=auto`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,pressure_msl,relative_humidity_2m,cloudcover,precipitation,is_day&timezone=auto&wind_speed_unit=kmh`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -736,7 +736,7 @@
         const windDir = getWindDirection(current.winddirection_10m);
         const timeOfDay = current.is_day ? 'Day' : 'Night';
 
-        const weatherSummary = `Temperature: ${current.temperature_2m}°C | Condition: ${weatherCondition} | Wind: ${current.windspeed_10m}mph ${windDir} | Pressure: ${current.pressure_msl}mb | Humidity: ${current.relative_humidity_2m}% | Clouds: ${current.cloudcover}% | Precipitation: ${current.precipitation}mm | Time: ${timeOfDay}`;
+        const weatherSummary = `Temperature: ${current.temperature_2m}°C | Condition: ${weatherCondition} | Wind: ${current.windspeed_10m}km/h ${windDir} | Pressure: ${current.pressure_msl}mb | Humidity: ${current.relative_humidity_2m}% | Clouds: ${current.cloudcover}% | Precipitation: ${current.precipitation}mm | Time: ${timeOfDay}`;
 
         weatherField.value = weatherSummary;
         statusElement.style.display = 'none';
