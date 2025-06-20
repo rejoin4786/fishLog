@@ -812,10 +812,7 @@
       const locationField = document.getElementById('location');
       const refreshBtn = document.getElementById('refreshLocation');
 
-      console.log('Getting location and weather...');
-
       if (!navigator.geolocation) {
-        console.error('Geolocation not supported');
         alert('Geolocation is not supported by this browser.');
         return;
       }
@@ -825,7 +822,6 @@
 
       navigator.geolocation.getCurrentPosition(
         function(position) {
-          console.log('Location obtained:', position);
           currentLat = position.coords.latitude;
           currentLon = position.coords.longitude;
           
@@ -841,58 +837,4 @@
         },
         function(error) {
           console.error('Geolocation error:', error);
-          alert('Unable to get location: ' + error.message);
-          refreshBtn.disabled = false;
-          refreshBtn.textContent = 'Refresh Location';
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 300000 // 5 minutes
-        }
-      );
-    }
-
-    // Auto-fill datetime and location on page load
-    document.addEventListener('DOMContentLoaded', function() {
-      console.log('DOM loaded, initializing...');
-      
-      const now = new Date();
-      // Get local time by adjusting for timezone offset
-      const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-      const datetime = localTime.toISOString().slice(0, 16);
-      
-      const datetimeField = document.getElementById('datetime');
-      if (datetimeField) {
-        datetimeField.value = datetime;
-        console.log('Datetime field set:', datetime);
-      } else {
-        console.error('Datetime field not found!');
-      }
-
-      // Get initial location and weather
-      console.log('Calling getLocationAndWeather...');
-      getLocationAndWeather();
-    });
-
-    // Refresh location button event listener
-    document.getElementById('refreshLocation').addEventListener('click', getLocationAndWeather);
-
-    // Function to upload image to Cloudinary
-    async function uploadToCloudinary(file, photoType) {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'fish-catches');
-      formData.append('tags', `fish,${photoType}`);
-
-      const statusElement = document.getElementById(`${photoType}Status`);
-      const previewElement = document.getElementById(`${photoType}Preview`);
-      const urlElement = document.getElementById(`${photoType}Url`);
-
-      try {
-        statusElement.textContent = 'Uploading...';
-        statusElement.className = 'upload-status upload-progress';
-        statusElement.style.display = 'block';
-
-        const response =
+          alert('Unable to get location: '
