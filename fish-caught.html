@@ -779,7 +779,8 @@
         statusElement.className = 'weather-status weather-loading';
         statusElement.style.display = 'block';
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,pressure_msl,relative_humidity_2m,cloudcover,precipitation,is_day&timezone=auto`;
+        const apiKey = 'fd3a20a664f6db7a9f8151c4ce05370d';
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`;
         
         const response = await fetch(url);
         if (!response.ok) {
@@ -787,14 +788,23 @@
         }
 
         const data = await response.json();
-        const current = data.current;
 
-        // Format weather data for AI analysis
-        const weatherCondition = weatherCodes[current.weathercode] || 'Unknown';
-        const windDir = getWindDirection(current.winddirection_10m);
-        const timeOfDay = current.is_day ? 'Day' : 'Night';
+        // Format weather data
+        const temperature = Math.round(data.main.temp * 10) / 10; // Round to 1 decimal
+        const weatherCondition = data.weather[0].description;
+        const windSpeed = Math.round(data.wind.speed * 3.6 * 10) / 10; // Convert m/s to km/h
+        const windDir = getWindDirection(data.wind.deg || 0);
+        const pressure = data.main.pressure;
+        const humidity = data.main.humidity;
+        const clouds = data.clouds.all;
+        const locationName = `${data.name}, ${data.sys.country}`;
+        
+        // Check if it's day or night (rough estimate)
+        const now = new Date();
+        const hour = now.getHours();
+        const timeOfDay = (hour >= 6 && hour < 20) ? 'Day' : 'Night';
 
-        const weatherSummary = `Temperature: ${current.temperature_2m}°C | Condition: ${weatherCondition} | Wind: ${current.windspeed_10m}mph ${windDir} | Pressure: ${current.pressure_msl}mb | Humidity: ${current.relative_humidity_2m}% | Clouds: ${current.cloudcover}% | Precipitation: ${current.precipitation}mm | Time: ${timeOfDay}`;
+        const weatherSummary = `Location: ${locationName} | Temperature: ${temperature}°C | Condition: ${weatherCondition} | Wind: ${windSpeed}km/h ${windDir} | Pressure: ${pressure}hPa | Humidity: ${humidity}% | Clouds: ${clouds}% | Time: ${timeOfDay}`;
 
         weatherField.value = weatherSummary;
         statusElement.style.display = 'none';
