@@ -526,37 +526,8 @@
     const CLOUDINARY_CLOUD_NAME = 'dhyvcrpv7';
     const CLOUDINARY_UPLOAD_PRESET = 'fish_photos';
 
-    // Weather code mapping for Open-Meteo API
-    const weatherCodes = {
-      0: 'Clear Sky',
-      1: 'Mainly Clear',
-      2: 'Partly Cloudy',
-      3: 'Overcast',
-      45: 'Fog',
-      48: 'Depositing Rime Fog',
-      51: 'Light Drizzle',
-      53: 'Moderate Drizzle',
-      55: 'Dense Drizzle',
-      56: 'Light Freezing Drizzle',
-      57: 'Dense Freezing Drizzle',
-      61: 'Slight Rain',
-      63: 'Moderate Rain',
-      65: 'Heavy Rain',
-      66: 'Light Freezing Rain',
-      67: 'Heavy Freezing Rain',
-      71: 'Slight Snow',
-      73: 'Moderate Snow',
-      75: 'Heavy Snow',
-      77: 'Snow Grains',
-      80: 'Slight Rain Showers',
-      81: 'Moderate Rain Showers',
-      82: 'Violent Rain Showers',
-      85: 'Slight Snow Showers',
-      86: 'Heavy Snow Showers',
-      95: 'Thunderstorm',
-      96: 'Thunderstorm with Slight Hail',
-      99: 'Thunderstorm with Heavy Hail'
-    };
+    // OpenWeatherMap API configuration
+    const OPENWEATHER_API_KEY = '91c11ab966ee99ba82a95bb5a411774a';
 
     // Global variables for location
     let currentLat = null;
@@ -569,7 +540,17 @@
       return directions[index];
     }
 
-    // Function to fetch weather data
+    // Function to convert Kelvin to Celsius
+    function kelvinToCelsius(kelvin) {
+      return Math.round(kelvin - 273.15);
+    }
+
+    // Function to convert meters per second to mph
+    function msToMph(ms) {
+      return Math.round(ms * 2.237);
+    }
+
+    // Function to fetch weather data from OpenWeatherMap
     async function fetchWeather(lat, lon) {
       const statusElement = document.getElementById('weatherStatus');
       const weatherField = document.getElementById('weather');
@@ -579,7 +560,7 @@
         statusElement.className = 'weather-status weather-loading';
         statusElement.style.display = 'block';
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weathercode,windspeed_10m,winddirection_10m,pressure_msl,relative_humidity_2m,cloudcover,precipitation,is_day&timezone=auto`;
+        const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${OPENWEATHER_API_KEY}&units=metric`;
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -587,14 +568,27 @@
         }
 
         const data = await response.json();
-        const current = data.current;
 
         // Format weather data for AI analysis
-        const weatherCondition = weatherCodes[current.weathercode] || 'Unknown';
-        const windDir = getWindDirection(current.winddirection_10m);
-        const timeOfDay = current.is_day ? 'Day' : 'Night';
+        const temp = Math.round(data.main.temp);
+        const feelsLike = Math.round(data.main.feels_like);
+        const condition = data.weather[0].main;
+        const description = data.weather[0].description;
+        const windSpeed = msToMph(data.wind.speed);
+        const windDir = data.wind.deg ? getWindDirection(data.wind.deg) : 'Variable';
+        const pressure = Math.round(data.main.pressure);
+        const humidity = data.main.humidity;
+        const visibility = data.visibility ? Math.round(data.visibility / 1000) : 'N/A';
+        const clouds = data.clouds.all;
+        
+        // Get sunrise/sunset times
+        const now = new Date();
+        const sunrise = new Date(data.sys.sunrise * 1000);
+        const sunset = new Date(data.sys.sunset * 1000);
+        const isDayTime = now > sunrise && now < sunset;
+        const timeOfDay = isDayTime ? 'Day' : 'Night';
 
-        const weatherSummary = `Temperature: ${current.temperature_2m}°C | Condition: ${weatherCondition} | Wind: ${current.windspeed_10m}mph ${windDir} | Pressure: ${current.pressure_msl}mb | Humidity: ${current.relative_humidity_2m}% | Clouds: ${current.cloudcover}% | Precipitation: ${current.precipitation}mm | Time: ${timeOfDay}`;
+        const weatherSummary = `Temperature: ${temp}°C (feels like ${feelsLike}°C) | Condition: ${condition} (${description}) | Wind: ${windSpeed}mph ${windDir} | Pressure: ${pressure}mb | Humidity: ${humidity}% | Clouds: ${clouds}% | Visibility: ${visibility}km | Time: ${timeOfDay}`;
 
         weatherField.value = weatherSummary;
         statusElement.style.display = 'none';
