@@ -828,17 +828,68 @@
         startNotes: formData.get('startNotes')
       };
 
-      // Store active session
+      // Store active session in browser
       sessionStorage.setItem('activeSession', JSON.stringify(sessionData));
       
-      // Here you would also submit to your database
-      console.log('Starting session:', sessionData);
-      
-      alert('Fishing session started! You can now log catches and updates.');
-      
-      // Reload to show active session
-      window.location.reload();
+      // Submit to Google Sheets via Sheetly
+      submitSessionStart(sessionData);
     });
+
+    // Function to submit session start to Google Sheets
+    async function submitSessionStart(sessionData) {
+      const submitButton = document.querySelector('#startSessionForm button[type="submit"]');
+      
+      try {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Starting Session...';
+
+        // Prepare data for Sheetly API
+        const sheetData = {
+          fishingsession: {
+            sessionId: sessionData.sessionId,
+            startTime: sessionData.startTime,
+            endTime: '', // Will be filled when session ends
+            location: sessionData.location,
+            waterBody: sessionData.waterBody,
+            weather: sessionData.weather,
+            waterTemp: sessionData.waterTemp,
+            clarity: sessionData.clarity,
+            startNotes: sessionData.startNotes,
+            sessionSummary: '' // Will be filled when session ends
+          }
+        };
+
+        console.log('Submitting session start to Sheetly:', sheetData);
+
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishingsessions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sheetData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Sheetly API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Session start saved to Google Sheets:', result);
+        
+        alert('Fishing session started and saved to Google Sheets!');
+        
+        // Reload to show active session
+        window.location.reload();
+
+      } catch (error) {
+        console.error('Session start submission error:', error);
+        alert(`Failed to start session: ${error.message}`);
+        
+        submitButton.disabled = false;
+        submitButton.textContent = 'Start Fishing Session';
+      }
+    }
 
     // Add update form
     document.getElementById('addUpdateForm').addEventListener('submit', function(event) {
@@ -855,34 +906,87 @@
         clarity: formData.get('updateClarity'),
         fishActivity: formData.get('fishActivity'),
         insectActivity: formData.get('insectActivity'),
+        fliesTried: formData.get('fliesTried'),
         techniquesTried: formData.get('techniquesTried'),
         notes: formData.get('updateNotes')
       };
 
-      // Add to timeline
-      const content = `
-        <strong>Conditions:</strong> ${updateData.weather}<br>
-        <strong>Fish Activity:</strong> ${updateData.fishActivity}<br>
-        <strong>Techniques:</strong> ${updateData.techniquesTried}<br>
-        <strong>Notes:</strong> ${updateData.notes}
-      `;
-      addTimelineItem('update', updateTime, content);
-
-      // Update session counter
-      const currentCount = parseInt(document.getElementById('sessionUpdateCount').textContent);
-      document.getElementById('sessionUpdateCount').textContent = currentCount + 1;
-
-      // Here you would submit to database
-      console.log('Session update:', updateData);
-      
-      // Clear form
-      this.reset();
-      const now = new Date();
-      const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
-      document.getElementById('updateTime').value = localTime.toISOString().slice(0, 16);
-      
-      alert('Session update logged!');
+      // Submit to Google Sheets
+      submitSessionUpdate(updateData, updateTime);
     });
+
+    // Function to submit session update to Google Sheets
+    async function submitSessionUpdate(updateData, displayTime) {
+      const submitButton = document.querySelector('#addUpdateForm button[type="submit"]');
+      
+      try {
+        submitButton.disabled = true;
+        submitButton.textContent = 'Saving Update...';
+
+        // Prepare data for Sheetly API
+        const sheetData = {
+          sessionupdate: {
+            sessionId: updateData.sessionId,
+            updateTime: updateData.updateTime,
+            weather: updateData.weather,
+            waterTemp: updateData.waterTemp,
+            clarity: updateData.clarity,
+            fishActivity: updateData.fishActivity,
+            insectActivity: updateData.insectActivity,
+            fliesTried: updateData.fliesTried,
+            techniquesTried: updateData.techniquesTried,
+            notes: updateData.notes
+          }
+        };
+
+        console.log('Submitting session update to Sheetly:', sheetData);
+
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/sessionupdates', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sheetData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Sheetly API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Session update saved to Google Sheets:', result);
+
+        // Add to timeline
+        const content = `
+          <strong>Conditions:</strong> ${updateData.weather}<br>
+          <strong>Fish Activity:</strong> ${updateData.fishActivity}<br>
+          <strong>Flies Tried:</strong> ${updateData.fliesTried}<br>
+          <strong>Techniques:</strong> ${updateData.techniquesTried}<br>
+          <strong>Notes:</strong> ${updateData.notes}
+        `;
+        addTimelineItem('update', displayTime, content);
+
+        // Update session counter
+        const currentCount = parseInt(document.getElementById('sessionUpdateCount').textContent);
+        document.getElementById('sessionUpdateCount').textContent = currentCount + 1;
+
+        // Clear form
+        document.getElementById('addUpdateForm').reset();
+        const now = new Date();
+        const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+        document.getElementById('updateTime').value = localTime.toISOString().slice(0, 16);
+        
+        alert('Session update logged and saved to Google Sheets!');
+
+      } catch (error) {
+        console.error('Session update submission error:', error);
+        alert(`Failed to save update: ${error.message}`);
+      } finally {
+        submitButton.disabled = false;
+        submitButton.textContent = 'Add Update';
+      }
+    }
 
     // End session
     document.getElementById('endSessionBtn').addEventListener('click', function() {
@@ -895,6 +999,26 @@
           sessionSummary: summary
         };
 
+        // Submit session end to Google Sheets
+        submitSessionEnd(endData);
+      }
+    });
+
+    // Function to submit session end to Google Sheets
+    async function submitSessionEnd(endData) {
+      const endButton = document.getElementById('endSessionBtn');
+      
+      try {
+        endButton.disabled = true;
+        endButton.textContent = 'Ending Session...';
+
+        // We need to update the existing session record with endTime and sessionSummary
+        // Since Sheetly doesn't support PATCH/PUT, we'll need to note this limitation
+        console.log('Session ending data:', endData);
+        
+        // Note: This would require a different approach to update existing records
+        // For now, we'll just clear the active session
+        
         // Clear active session
         sessionStorage.removeItem('activeSession');
         
@@ -903,15 +1027,19 @@
           clearInterval(sessionDurationInterval);
         }
 
-        // Here you would submit final session data to database
-        console.log('Ending session:', endData);
-        
-        alert('Fishing session ended and saved!');
+        alert('Fishing session ended! Note: Session end time and summary need to be manually updated in Google Sheets.');
         
         // Reload page
         window.location.reload();
+
+      } catch (error) {
+        console.error('Session end error:', error);
+        alert(`Failed to end session: ${error.message}`);
+        
+        endButton.disabled = false;
+        endButton.textContent = 'End Fishing Session';
       }
-    });
+    }
   </script>
 </body>
 </html>
