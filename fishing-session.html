@@ -835,7 +835,7 @@
       submitSessionStart(sessionData);
     });
 
-    // Function to submit session start to Google Sheets
+    // Function to submit session start to master sheet
     async function submitSessionStart(sessionData) {
       const submitButton = document.querySelector('#startSessionForm button[type="submit"]');
       
@@ -843,25 +843,25 @@
         submitButton.disabled = true;
         submitButton.textContent = 'Starting Session...';
 
-        // Prepare data for Sheetly API
+        // Prepare data for master fishinglog sheet
         const sheetData = {
-          fishingsession: {
+          fishinglog: {
             sessionId: sessionData.sessionId,
-            startTime: sessionData.startTime,
-            endTime: '', // Will be filled when session ends
+            timestamp: sessionData.startTime,
+            actionType: 'session_start',
             location: sessionData.location,
-            waterBody: sessionData.waterBody,
             weather: sessionData.weather,
             waterTemp: sessionData.waterTemp,
             clarity: sessionData.clarity,
+            structure: sessionData.waterBody,
             startNotes: sessionData.startNotes,
-            sessionSummary: '' // Will be filled when session ends
+            notes: `Session started at ${sessionData.waterBody || 'Unknown location'}`
           }
         };
 
-        console.log('Submitting session start to Sheetly:', sheetData);
+        console.log('Submitting session start to master sheet:', sheetData);
 
-        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishingsessions', {
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishinglog', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -875,7 +875,7 @@
         }
 
         const result = await response.json();
-        console.log('Session start saved to Google Sheets:', result);
+        console.log('Session start saved to master sheet:', result);
         
         alert('Fishing session started and saved to Google Sheets!');
         
@@ -915,7 +915,7 @@
       submitSessionUpdate(updateData, updateTime);
     });
 
-    // Function to submit session update to Google Sheets
+    // Function to submit session update to master sheet
     async function submitSessionUpdate(updateData, displayTime) {
       const submitButton = document.querySelector('#addUpdateForm button[type="submit"]');
       
@@ -923,11 +923,13 @@
         submitButton.disabled = true;
         submitButton.textContent = 'Saving Update...';
 
-        // Prepare data for Sheetly API
+        // Prepare data for master fishinglog sheet
         const sheetData = {
-          sessionupdate: {
+          fishinglog: {
             sessionId: updateData.sessionId,
-            updateTime: updateData.updateTime,
+            timestamp: updateData.updateTime,
+            actionType: 'session_update',
+            location: activeSession.location,
             weather: updateData.weather,
             waterTemp: updateData.waterTemp,
             clarity: updateData.clarity,
@@ -939,9 +941,9 @@
           }
         };
 
-        console.log('Submitting session update to Sheetly:', sheetData);
+        console.log('Submitting session update to master sheet:', sheetData);
 
-        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/sessionupdates', {
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishinglog', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -955,7 +957,7 @@
         }
 
         const result = await response.json();
-        console.log('Session update saved to Google Sheets:', result);
+        console.log('Session update saved to master sheet:', result);
 
         // Add to timeline
         const content = `
@@ -1004,7 +1006,7 @@
       }
     });
 
-    // Function to submit session end to Google Sheets
+    // Function to submit session end to master sheet
     async function submitSessionEnd(endData) {
       const endButton = document.getElementById('endSessionBtn');
       
@@ -1012,13 +1014,37 @@
         endButton.disabled = true;
         endButton.textContent = 'Ending Session...';
 
-        // We need to update the existing session record with endTime and sessionSummary
-        // Since Sheetly doesn't support PATCH/PUT, we'll need to note this limitation
-        console.log('Session ending data:', endData);
-        
-        // Note: This would require a different approach to update existing records
-        // For now, we'll just clear the active session
-        
+        // Prepare data for master fishinglog sheet
+        const sheetData = {
+          fishinglog: {
+            sessionId: endData.sessionId,
+            timestamp: endData.endTime,
+            actionType: 'session_end',
+            location: activeSession.location,
+            weather: '', // Could fetch current weather if needed
+            sessionSummary: endData.sessionSummary,
+            notes: `Session ended. Summary: ${endData.sessionSummary || 'No summary provided'}`
+          }
+        };
+
+        console.log('Submitting session end to master sheet:', sheetData);
+
+        const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishinglog', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sheetData)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Sheetly API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        console.log('Session end saved to master sheet:', result);
+
         // Clear active session
         sessionStorage.removeItem('activeSession');
         
@@ -1027,7 +1053,7 @@
           clearInterval(sessionDurationInterval);
         }
 
-        alert('Fishing session ended! Note: Session end time and summary need to be manually updated in Google Sheets.');
+        alert('Fishing session ended and saved to Google Sheets!');
         
         // Reload page
         window.location.reload();
