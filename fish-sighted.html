@@ -566,6 +566,57 @@
   </div>
 
   <script>
+    // Session Persistence Functions
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      return `session_${timestamp}_${random}`;
+    }
+
+    function saveSessionToStorage(sessionData) {
+      const sessionInfo = {
+        sessionId: sessionData.sessionId,
+        sessionData: sessionData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('flylog_active_session', JSON.stringify(sessionInfo));
+    }
+
+    function restoreActiveSession() {
+      const saved = localStorage.getItem('flylog_active_session');
+      
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          const timeSince = Date.now() - data.timestamp;
+          
+          // Session expires after 12 hours (43,200,000 ms)
+          if (timeSince < 12 * 60 * 60 * 1000) {
+            activeSession = data.sessionData;
+            sessionStartTime = new Date(activeSession.startTime);
+            
+            console.log('Session restored:', data.sessionId);
+            return data.sessionId;
+          } else {
+            // Session expired - clear it
+            localStorage.removeItem('flylog_active_session');
+            console.log('Session expired and cleared');
+          }
+        } catch (e) {
+          console.error('Error restoring session:', e);
+          localStorage.removeItem('flylog_active_session');
+        }
+      }
+      
+      return null;
+    }
+
+    function clearActiveSession() {
+      localStorage.removeItem('flylog_active_session');
+      activeSession = null;
+      sessionStartTime = null;
+    }
+
     // Cloudinary configuration
     const CLOUDINARY_CLOUD_NAME = 'dhyvcrpv7';
     const CLOUDINARY_UPLOAD_PRESET = 'fish_photos';
@@ -574,6 +625,7 @@
     let currentLat = null;
     let currentLon = null;
     let activeSession = null;
+    let sessionStartTime = null;
 
     // Function to get wind direction from degrees
     function getWindDirection(degrees) {
@@ -673,10 +725,9 @@
 
     // Function to check for active session
     function checkActiveSession() {
-      const sessionData = sessionStorage.getItem('activeSession');
-      if (sessionData) {
-        activeSession = JSON.parse(sessionData);
-        
+      // Try new localStorage system first
+      const restoredId = restoreActiveSession();
+      if (restoredId) {
         // Show session status bar
         const sessionBar = document.getElementById('sessionStatusBar');
         sessionBar.classList.add('active');
@@ -692,6 +743,40 @@
             // Fetch current weather
             fetchWeather(currentLat, currentLon);
           }
+        }
+        return;
+      }
+
+      // Fallback: check old sessionStorage system for migration
+      const sessionData = sessionStorage.getItem('activeSession');
+      if (sessionData) {
+        try {
+          activeSession = JSON.parse(sessionData);
+          sessionStartTime = new Date(activeSession.startTime);
+          
+          // Migrate to new system
+          if (activeSession.sessionId) {
+            saveSessionToStorage(activeSession);
+          }
+          
+          // Show session status bar
+          const sessionBar = document.getElementById('sessionStatusBar');
+          sessionBar.classList.add('active');
+          
+          // Use session location if available
+          if (activeSession.location) {
+            const coords = activeSession.location.split(', ');
+            if (coords.length === 2) {
+              currentLat = parseFloat(coords[0]);
+              currentLon = parseFloat(coords[1]);
+              document.getElementById('location').value = activeSession.location;
+              
+              // Fetch current weather
+              fetchWeather(currentLat, currentLon);
+            }
+          }
+        } catch (e) {
+          console.error('Error migrating session:', e);
         }
       }
     }
