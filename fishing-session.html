@@ -599,6 +599,62 @@
   </div>
 
   <script>
+    // Session Persistence Functions
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      return `session_${timestamp}_${random}`;
+    }
+
+    function saveSessionToStorage(sessionData) {
+      const sessionInfo = {
+        sessionId: sessionData.sessionId,
+        sessionData: sessionData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('flylog_active_session', JSON.stringify(sessionInfo));
+    }
+
+    function restoreActiveSession() {
+      const saved = localStorage.getItem('flylog_active_session');
+      
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          const timeSince = Date.now() - data.timestamp;
+          
+          // Session expires after 12 hours (43,200,000 ms)
+          if (timeSince < 12 * 60 * 60 * 1000) {
+            activeSession = data.sessionData;
+            sessionStartTime = new Date(activeSession.startTime);
+            
+            console.log('Session restored:', data.sessionId);
+            return data.sessionId;
+          } else {
+            // Session expired - clear it
+            localStorage.removeItem('flylog_active_session');
+            console.log('Session expired and cleared');
+          }
+        } catch (e) {
+          console.error('Error restoring session:', e);
+          localStorage.removeItem('flylog_active_session');
+        }
+      }
+      
+      return null;
+    }
+
+    function clearActiveSession() {
+      localStorage.removeItem('flylog_active_session');
+      activeSession = null;
+      sessionStartTime = null;
+      
+      if (sessionDurationInterval) {
+        clearInterval(sessionDurationInterval);
+        sessionDurationInterval = null;
+      }
+    }
+
     // Global variables
     let currentLat = null;
     let currentLon = null;
@@ -708,11 +764,6 @@
       );
     }
 
-    // Function to generate session ID
-    function generateSessionId() {
-      return 'session_' + Date.now();
-    }
-
     // Function to update session duration
     function updateSessionDuration() {
       if (sessionStartTime) {
@@ -726,11 +777,9 @@
 
     // Function to check for active session
     function checkActiveSession() {
-      const sessionData = sessionStorage.getItem('activeSession');
-      if (sessionData) {
-        activeSession = JSON.parse(sessionData);
-        sessionStartTime = new Date(activeSession.startTime);
-        
+      // Try new localStorage system first
+      const restoredId = restoreActiveSession();
+      if (restoredId) {
         // Update UI to show active session
         document.body.classList.add('session-active');
         
@@ -750,6 +799,45 @@
         if (coords.length === 2) {
           currentLat = parseFloat(coords[0]);
           currentLon = parseFloat(coords[1]);
+        }
+        
+        return;
+      }
+
+      // Fallback: check old sessionStorage system for migration
+      const sessionData = sessionStorage.getItem('activeSession');
+      if (sessionData) {
+        try {
+          activeSession = JSON.parse(sessionData);
+          sessionStartTime = new Date(activeSession.startTime);
+          
+          // Migrate to new system
+          if (activeSession.sessionId) {
+            saveSessionToStorage(activeSession);
+          }
+          
+          // Update UI to show active session
+          document.body.classList.add('session-active');
+          
+          // Update session status
+          document.getElementById('sessionStartTime').textContent = new Date(activeSession.startTime).toLocaleString();
+          document.getElementById('sessionLocation').textContent = activeSession.waterBody || activeSession.location;
+          
+          // Start duration counter
+          updateSessionDuration();
+          sessionDurationInterval = setInterval(updateSessionDuration, 1000);
+          
+          // Load session timeline
+          loadSessionTimeline();
+          
+          // Set current location for updates
+          const coords = activeSession.location.split(', ');
+          if (coords.length === 2) {
+            currentLat = parseFloat(coords[0]);
+            currentLon = parseFloat(coords[1]);
+          }
+        } catch (e) {
+          console.error('Error migrating session:', e);
         }
       }
     }
@@ -785,15 +873,15 @@
 
     // Initialize page
     document.addEventListener('DOMContentLoaded', function() {
+      // Try to restore active session first
+      checkActiveSession();
+      
       // Set current time
       const now = new Date();
       const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const datetime = localTime.toISOString().slice(0, 16);
       document.getElementById('startTime').value = datetime;
       document.getElementById('updateTime').value = datetime;
-
-      // Check for active session
-      checkActiveSession();
 
       // Get initial location if no active session
       if (!activeSession) {
@@ -828,7 +916,10 @@
         startNotes: formData.get('startNotes')
       };
 
-      // Store active session in browser
+      // Store active session in new localStorage system
+      saveSessionToStorage(sessionData);
+      
+      // Keep old sessionStorage for compatibility (can be removed later)
       sessionStorage.setItem('activeSession', JSON.stringify(sessionData));
       
       // Submit to Google Sheets via Sheetly
@@ -1014,6 +1105,12 @@
         endButton.disabled = true;
         endButton.textContent = 'Ending Session...';
 
+        // Calculate session duration
+        const startTime = new Date(activeSession.startTime);
+        const endTime = new Date(endData.endTime);
+        const durationMs = endTime - startTime;
+        const durationHours = (durationMs / (1000 * 60 * 60)).toFixed(1);
+
         // Prepare data for master fishinglog sheet
         const sheetData = {
           fishinglog: {
@@ -1023,7 +1120,8 @@
             location: activeSession.location,
             weather: '', // Could fetch current weather if needed
             sessionSummary: endData.sessionSummary,
-            notes: `Session ended. Summary: ${endData.sessionSummary || 'No summary provided'}`
+            totalDuration: `${durationHours} hours`,
+            notes: `Session ended. Duration: ${durationHours} hours. Summary: ${endData.sessionSummary || 'No summary provided'}`
           }
         };
 
@@ -1045,15 +1143,11 @@
         const result = await response.json();
         console.log('Session end saved to master sheet:', result);
 
-        // Clear active session
+        // Clear active session from both storage systems
+        clearActiveSession();
         sessionStorage.removeItem('activeSession');
-        
-        // Stop duration counter
-        if (sessionDurationInterval) {
-          clearInterval(sessionDurationInterval);
-        }
 
-        alert('Fishing session ended and saved to Google Sheets!');
+        alert(`Fishing session ended and saved to Google Sheets! Total duration: ${durationHours} hours`);
         
         // Reload page
         window.location.reload();
