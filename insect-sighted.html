@@ -9,6 +9,16 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      .session-status-bar {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+      }
+
+      .session-info {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
     }
 
     body {
@@ -65,6 +75,66 @@
     .form-header p {
       font-size: 1.1rem;
       opacity: 0.9;
+    }
+
+    /* Session Status Bar */
+    .session-status-bar {
+      background: rgba(16, 185, 129, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      color: white;
+    }
+
+    .session-status-bar.active {
+      display: flex;
+    }
+
+    .session-info {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .session-indicator {
+      width: 12px;
+      height: 12px;
+      background: #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .session-text {
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
+
+    .session-action {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.2s;
+      text-decoration: none;
+    }
+
+    .session-action:hover {
+      background: rgba(255, 255, 255, 0.3);
     }
 
     .form-card {
@@ -310,6 +380,15 @@
       <p>Track insect hatches and activity patterns to predict successful fishing opportunities</p>
     </div>
 
+    <!-- Active Session Status Bar -->
+    <div id="sessionStatusBar" class="session-status-bar">
+      <div class="session-info">
+        <div class="session-indicator"></div>
+        <div class="session-text">🎣 Part of active fishing session</div>
+      </div>
+      <a href="fishing-session.html" class="session-action">Manage Session</a>
+    </div>
+
     <div class="form-card">
       <form id="insectSightedForm">
 
@@ -522,13 +601,66 @@
   </div>
 
   <script>
+    // Session Persistence Functions
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      return `session_${timestamp}_${random}`;
+    }
+
+    function saveSessionToStorage(sessionData) {
+      const sessionInfo = {
+        sessionId: sessionData.sessionId,
+        sessionData: sessionData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('flylog_active_session', JSON.stringify(sessionInfo));
+    }
+
+    function restoreActiveSession() {
+      const saved = localStorage.getItem('flylog_active_session');
+      
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          const timeSince = Date.now() - data.timestamp;
+          
+          // Session expires after 12 hours (43,200,000 ms)
+          if (timeSince < 12 * 60 * 60 * 1000) {
+            activeSession = data.sessionData;
+            sessionStartTime = new Date(activeSession.startTime);
+            
+            console.log('Session restored:', data.sessionId);
+            return data.sessionId;
+          } else {
+            // Session expired - clear it
+            localStorage.removeItem('flylog_active_session');
+            console.log('Session expired and cleared');
+          }
+        } catch (e) {
+          console.error('Error restoring session:', e);
+          localStorage.removeItem('flylog_active_session');
+        }
+      }
+      
+      return null;
+    }
+
+    function clearActiveSession() {
+      localStorage.removeItem('flylog_active_session');
+      activeSession = null;
+      sessionStartTime = null;
+    }
+
     // Cloudinary configuration
     const CLOUDINARY_CLOUD_NAME = 'dhyvcrpv7';
     const CLOUDINARY_UPLOAD_PRESET = 'fish_photos';
 
-    // Global variables for location
+    // Global variables for location and session
     let currentLat = null;
     let currentLon = null;
+    let activeSession = null;
+    let sessionStartTime = null;
 
     // Function to get wind direction from degrees
     function getWindDirection(degrees) {
@@ -627,6 +759,64 @@
       );
     }
 
+    // Function to check for active session
+    function checkActiveSession() {
+      // Try new localStorage system first
+      const restoredId = restoreActiveSession();
+      if (restoredId) {
+        // Show session status bar
+        const sessionBar = document.getElementById('sessionStatusBar');
+        sessionBar.classList.add('active');
+        
+        // Use session location if available
+        if (activeSession.location) {
+          const coords = activeSession.location.split(', ');
+          if (coords.length === 2) {
+            currentLat = parseFloat(coords[0]);
+            currentLon = parseFloat(coords[1]);
+            document.getElementById('location').value = activeSession.location;
+            
+            // Fetch current weather
+            fetchWeather(currentLat, currentLon);
+          }
+        }
+        return;
+      }
+
+      // Fallback: check old sessionStorage system for migration
+      const sessionData = sessionStorage.getItem('activeSession');
+      if (sessionData) {
+        try {
+          activeSession = JSON.parse(sessionData);
+          sessionStartTime = new Date(activeSession.startTime);
+          
+          // Migrate to new system
+          if (activeSession.sessionId) {
+            saveSessionToStorage(activeSession);
+          }
+          
+          // Show session status bar
+          const sessionBar = document.getElementById('sessionStatusBar');
+          sessionBar.classList.add('active');
+          
+          // Use session location if available
+          if (activeSession.location) {
+            const coords = activeSession.location.split(', ');
+            if (coords.length === 2) {
+              currentLat = parseFloat(coords[0]);
+              currentLon = parseFloat(coords[1]);
+              document.getElementById('location').value = activeSession.location;
+              
+              // Fetch current weather
+              fetchWeather(currentLat, currentLon);
+            }
+          }
+        } catch (e) {
+          console.error('Error migrating session:', e);
+        }
+      }
+    }
+
     // Auto-fill datetime and location on page load
     document.addEventListener('DOMContentLoaded', function() {
       const now = new Date();
@@ -635,8 +825,13 @@
       const datetime = localTime.toISOString().slice(0, 16);
       document.getElementById('sightTime').value = datetime;
 
-      // Get initial location and weather
-      getLocationAndWeather();
+      // Check for active session first
+      checkActiveSession();
+
+      // Get location if no active session
+      if (!activeSession) {
+        getLocationAndWeather();
+      }
     });
 
     // Refresh location button event listener
@@ -729,7 +924,7 @@
         // Prepare data for master fishinglog sheet
         const sheetData = {
           fishinglog: {
-            sessionId: 'standalone_' + Date.now(),
+            sessionId: activeSession ? activeSession.sessionId : 'standalone_' + Date.now(),
             timestamp: formData.get('sightTime'),
             actionType: 'insect_sighted',
             location: formData.get('location'),
@@ -770,8 +965,16 @@
         const result = await response.json();
         console.log('Sheetly response:', result);
 
-        // Success!
-        alert('Insect sighting successfully logged to master sheet!');
+        // Success message
+        const sessionText = activeSession ? ' and linked to your active fishing session' : '';
+        alert(`Insect sighting successfully logged${sessionText}!`);
+        
+        // Offer to return to session if active
+        if (activeSession) {
+          if (confirm('Would you like to return to your active fishing session?')) {
+            window.location.href = 'fishing-session.html';
+          }
+        }
 
       } catch (error) {
         console.error('Submission error:', error);
