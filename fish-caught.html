@@ -802,6 +802,83 @@
   </div>
 
   <script>
+    // Session Persistence Functions
+    function generateSessionId() {
+      const timestamp = Date.now();
+      const random = Math.random().toString(36).substring(2, 8);
+      return `session_${timestamp}_${random}`;
+    }
+
+    function saveSessionToStorage(sessionData) {
+      const sessionInfo = {
+        sessionId: sessionData.sessionId,
+        sessionData: sessionData,
+        timestamp: Date.now()
+      };
+      localStorage.setItem('flylog_active_session', JSON.stringify(sessionInfo));
+    }
+
+    function restoreActiveSession() {
+      const saved = localStorage.getItem('flylog_active_session');
+      
+      if (saved) {
+        try {
+          const data = JSON.parse(saved);
+          const timeSince = Date.now() - data.timestamp;
+          
+          // Session expires after 12 hours (43,200,000 ms)
+          if (timeSince < 12 * 60 * 60 * 1000) {
+            activeSession = data.sessionData;
+            
+            // Show session status bar
+            const statusBar = document.getElementById('sessionStatusBar');
+            if (statusBar) {
+              statusBar.classList.add('active');
+            }
+            
+            console.log('Session restored:', data.sessionId);
+            return data.sessionId;
+          } else {
+            // Session expired - clear it
+            localStorage.removeItem('flylog_active_session');
+            console.log('Session expired and cleared');
+          }
+        } catch (e) {
+          console.error('Error restoring session:', e);
+          localStorage.removeItem('flylog_active_session');
+        }
+      }
+      
+      return null;
+    }
+
+    function getCurrentSessionId() {
+      // First check memory
+      if (activeSession && activeSession.sessionId) {
+        return activeSession.sessionId;
+      }
+      
+      // Try to restore from localStorage
+      const restoredId = restoreActiveSession();
+      if (restoredId) {
+        return restoredId;
+      }
+      
+      // No active session - return standalone ID
+      return 'standalone_' + Date.now();
+    }
+
+    function clearActiveSession() {
+      localStorage.removeItem('flylog_active_session');
+      activeSession = null;
+      
+      // Hide session status bar
+      const statusBar = document.getElementById('sessionStatusBar');
+      if (statusBar) {
+        statusBar.classList.remove('active');
+      }
+    }
+
     // Cloudinary configuration
     const CLOUDINARY_CLOUD_NAME = 'dhyvcrpv7';
     const CLOUDINARY_UPLOAD_PRESET = 'fish_photos';
@@ -907,39 +984,58 @@
       );
     }
 
-    // Function to check for active session
+    // Function to check for active session (keeping original function name for compatibility)
     function checkActiveSession() {
+      // Try to restore from new localStorage system first
+      const restoredId = restoreActiveSession();
+      if (restoredId) {
+        return;
+      }
+
+      // Fallback: check old sessionStorage system for migration
       const sessionData = sessionStorage.getItem('activeSession');
       if (sessionData) {
-        activeSession = JSON.parse(sessionData);
-        
-        // Show session status bar
-        const sessionBar = document.getElementById('sessionStatusBar');
-        sessionBar.classList.add('active');
-        
-        // Use session location if available
-        if (activeSession.location) {
-          const coords = activeSession.location.split(', ');
-          if (coords.length === 2) {
-            currentLat = parseFloat(coords[0]);
-            currentLon = parseFloat(coords[1]);
-            document.getElementById('location').value = activeSession.location;
-            
-            // Fetch current weather
-            fetchWeather(currentLat, currentLon);
+        try {
+          activeSession = JSON.parse(sessionData);
+          
+          // Migrate to new system
+          if (activeSession.sessionId) {
+            saveSessionToStorage(activeSession);
           }
+          
+          // Show session status bar
+          const sessionBar = document.getElementById('sessionStatusBar');
+          sessionBar.classList.add('active');
+          
+          // Use session location if available
+          if (activeSession.location) {
+            const coords = activeSession.location.split(', ');
+            if (coords.length === 2) {
+              currentLat = parseFloat(coords[0]);
+              currentLon = parseFloat(coords[1]);
+              document.getElementById('location').value = activeSession.location;
+              
+              // Fetch current weather
+              fetchWeather(currentLat, currentLon);
+            }
+          }
+        } catch (e) {
+          console.error('Error migrating session:', e);
         }
       }
     }
 
     // Auto-fill datetime and location on page load
     document.addEventListener('DOMContentLoaded', function() {
+      // Try to restore active session first
+      restoreActiveSession();
+      
       const now = new Date();
       const localTime = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
       const datetime = localTime.toISOString().slice(0, 16);
       document.getElementById('datetime').value = datetime;
 
-      // Check for active session first
+      // Check for active session (including old sessionStorage)
       checkActiveSession();
 
       // Get location if no active session
@@ -1029,6 +1125,9 @@
         submitButton.disabled = true;
         submitButton.textContent = 'Submitting...';
 
+        // Get session ID using new persistent system
+        const sessionId = getCurrentSessionId();
+
         // Get photo URLs from hidden fields
         const flyPhotoUrl = document.getElementById('flyPhotoUrl').value;
         const fishPhotoUrl = document.getElementById('fishPhotoUrl').value;
@@ -1039,7 +1138,7 @@
         // Prepare data for master fishinglog sheet
         const sheetData = {
           fishinglog: {
-            sessionId: activeSession ? activeSession.sessionId : 'standalone_' + Date.now(),
+            sessionId: sessionId,
             timestamp: formData.get('datetime'),
             actionType: 'fish_caught',
             location: formData.get('location'),
@@ -1075,6 +1174,7 @@
           }
         };
 
+        console.log('Submitting fish catch with session ID:', sessionId);
         console.log('Submitting fish catch to master sheet:', sheetData);
 
         const response = await fetch('https://api.sheety.co/c09e81f7a99e0349fd3a26d43bc158ce/fishingLog/fishinglog', {
