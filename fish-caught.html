@@ -685,6 +685,18 @@
             </select>
           </div>
 
+          <!-- RETRIEVE STAGE -->
+          <div class="form-group">
+            <label for="retrieveStage">Retrieve Stage</label>
+            <select id="retrieveStage" name="retrieveStage">
+              <option>--</option>
+              <option>Drop</option>
+              <option>Retrieve</option>
+              <option>Pause</option>
+              <option>Hang</option>
+            </select>
+          </div>
+
           <!-- ENHANCEMENT 4: LINE TYPE TRACKING (Single Selection) -->
           <div class="form-group">
             <label for="lineType">Line Type Used</label>
@@ -817,34 +829,6 @@
                 `);
               });
             </script>
-          </div>
-        </div>
-
-        <!-- Retrieve Information -->
-        <div class="form-section">
-          <h3 class="section-title">Retrieve Information</h3>
-          
-          <div class="form-row">
-            <div class="form-group">
-              <label for="retrieveStage">Retrieve Stage</label>
-              <select id="retrieveStage" name="retrieveStage">
-                <option>--</option>
-                <option>Drop</option>
-                <option>Retrieve</option>
-                <option>Pause</option>
-                <option>Hang</option>
-              </select>
-            </div>
-
-            <div class="form-group">
-              <label for="retrieveSpeed">Retrieve Speed</label>
-              <select id="retrieveSpeed" name="retrieveSpeed">
-                <option>--</option>
-                <option>Slow</option>
-                <option>Medium</option>
-                <option>Fast</option>
-              </select>
-            </div>
           </div>
         </div>
 
@@ -1329,7 +1313,6 @@
             flyColorBottom: formData.get('flyColorBottom'),
             flyEatenBottom: formData.get('flyEatenBottom') ? 'Yes' : 'No',
             retrieveStage: formData.get('retrieveStage'),
-            retrieveSpeed: formData.get('retrieveSpeed'),
             retrieveMethod: formData.get('retrieveMethod'),
             lineType: formData.get('lineType'),
             techniquesTried: techniques.join(', '),
